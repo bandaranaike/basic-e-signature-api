@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Document;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -23,18 +24,8 @@ class DocumentControllerTest extends TestCase
 
     #[Test] public function an_authenticated_user_can_upload_a_document()
     {
-        // Create a user and authenticate
-        $user = User::factory()->create();
-        Sanctum::actingAs($user);
-
-        // Creating a fake doc
-        $file = UploadedFile::fake()->create('document.pdf', 1024, 'application/pdf');
-
         // API request
-        $response = $this->postJson('/api/documents/upload', [
-            'name' => 'Test Document',
-            'file' => $file,
-        ]);
+        list($response, $file, $user) = $this->upload_fake_document(1);
 
         // Check the response status and structure
         $response->assertStatus(201)
@@ -56,10 +47,24 @@ class DocumentControllerTest extends TestCase
 
         // Database should contain the document
         $this->assertDatabaseHas('documents', [
-            'name' => 'Test Document',
+            'name' => 'Test Document 1',
             'file' => 'documents/' . $file->hashName(),
             'user_id' => $user->id,
         ]);
+    }
+
+    private function upload_fake_document($documentId): array
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $file = UploadedFile::fake()->create("document-$documentId.pdf", 1024, 'application/pdf');
+
+        $response = $this->postJson('/api/documents/upload', [
+            'name' => "Test Document $documentId",
+            'file' => $file,
+        ]);
+        return [$response, $file, $user];
     }
 
     #[Test] public function a_guest_user_cannot_upload_a_document()
@@ -96,5 +101,54 @@ class DocumentControllerTest extends TestCase
         // Expect response status and errors
         $response->assertStatus(422)
             ->assertJsonValidationErrors(['name', 'file']);
+    }
+
+    #[Test] public function a_user_has_documents()
+    {
+        $count = 3;
+
+        for ($i = 0; $i < $count; $i++) {
+            $this->upload_fake_document($i);
+        }
+
+
+        $response = $this->getJson('/api/documents');
+
+        dd($response->json());
+
+        $response->assertStatus(200)->assertJsonCount($count);
+    }
+
+    public function test_user_document_list()
+    {
+        $user = User::factory()->create();
+        $document1 = Document::factory()->create(['user_id' => $user->id]);
+        $document2 = Document::factory()->create(['user_id' => $user->id]);
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->getJson('/api/user/documents');
+
+        $response->assertStatus(200);
+        $response->assertJsonStructure([
+            'documents' => [
+                '*' => ['id', 'public_id', 'name', 'file', 'user_id', 'created_at', 'updated_at']
+            ]
+        ]);
+
+        $documents = $response->json('documents');
+        $this->assertCount(2, $documents);
+        $this->assertEquals($document1->id, $documents[0]['id']);
+        $this->assertEquals($document2->id, $documents[1]['id']);
+    }
+
+    public function test_user_document_list_empty()
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->getJson('/api/user/documents');
+
+        $response->assertStatus(200);
+        $response->assertJson(['documents' => []]);
     }
 }

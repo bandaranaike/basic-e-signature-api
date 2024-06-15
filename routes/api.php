@@ -15,3 +15,6 @@ Route::middleware(['auth:sanctum'])->post('/documents/upload', [DocumentControll
 
 Route::middleware(['auth:sanctum'])->post('/signatures/upload', [SignatureController::class, 'upload']);
 Route::middleware(['auth:sanctum'])->post('/documents/{document}/sign', [DocumentSignatureController::class, 'signDocument']);
+Route::middleware(['auth:sanctum'])->post('/documents/{document}/sign-requests', [DocumentSignatureController::class, 'sendSignatureRequest']);
+
+Route::middleware(['auth:sanctum'])->get('/user/documents', [DocumentController::class, 'userDocumentList']);

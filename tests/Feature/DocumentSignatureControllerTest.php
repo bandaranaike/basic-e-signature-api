@@ -1,25 +1,37 @@
 <?php
-
 namespace Tests\Feature;
 
 use App\Models\User;
 use App\Models\Document;
 use App\Models\Signature;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
-use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class DocumentSignatureControllerTest extends TestCase
 {
     use RefreshDatabase;
 
-    #[Test] public function an_authenticated_user_can_sign_a_document()
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Storage::fake('public');
+    }
+
+    /** @test */
+    public function an_authenticated_user_can_sign_a_document()
     {
         // Create a user, document, and signature
         $user = User::factory()->create();
-        $document = Document::factory()->create(['user_id' => $user->id]);
-        $signature = Signature::factory()->create(['user_id' => $user->id]);
+        $document = Document::factory()->create(['user_id' => $user->id, 'file' => 'documents/sample.pdf']);
+        $signature = Signature::factory()->create(['user_id' => $user->id, 'file' => 'signatures/sample-signature.png']);
+
+        // Create a fake PDF file
+        Storage::disk('public')->put('documents/sample.pdf', 'Fake PDF content');
+
+        // Create a fake signature image
+        Storage::disk('public')->put('signatures/sample-signature.png', 'Fake Signature Image');
 
         // Authenticate the user
         Sanctum::actingAs($user);
@@ -28,8 +40,6 @@ class DocumentSignatureControllerTest extends TestCase
         $response = $this->postJson("/api/documents/{$document->id}/sign", [
             'signature_id' => $signature->id,
         ]);
-
-//        dd($response->exception);
 
         // Check the response status
         $response->assertStatus(200)
@@ -43,14 +53,25 @@ class DocumentSignatureControllerTest extends TestCase
             'signature_id' => $signature->id,
             'signed_user_id' => $user->id,
         ]);
+
+        // Check that the new signed PDF exists in storage
+        $newPdfPath = 'documents/signed_' . basename($document->file);
+        Storage::disk('public')->assertExists($newPdfPath);
     }
 
-    #[Test] public function a_guest_user_cannot_sign_a_document()
+    /** @test */
+    public function a_guest_user_cannot_sign_a_document()
     {
         // Create a user, document, and signature
         $user = User::factory()->create();
-        $document = Document::factory()->create(['user_id' => $user->id]);
-        $signature = Signature::factory()->create(['user_id' => $user->id]);
+        $document = Document::factory()->create(['user_id' => $user->id, 'file' => 'documents/sample.pdf']);
+        $signature = Signature::factory()->create(['user_id' => $user->id, 'file' => 'signatures/sample-signature.png']);
+
+        // Create a fake PDF file
+        Storage::disk('public')->put('documents/sample.pdf', 'Fake PDF content');
+
+        // Create a fake signature image
+        Storage::disk('public')->put('signatures/sample-signature.png', 'Fake Signature Image');
 
         // API request without authentication
         $response = $this->postJson("/api/documents/{$document->id}/sign", [
@@ -65,20 +86,25 @@ class DocumentSignatureControllerTest extends TestCase
             'document_id' => $document->id,
             'signature_id' => $signature->id,
         ]);
+
+        // Check that the new signed PDF does not exist in storage
+        $newPdfPath = 'documents/signed_' . basename($document->file);
+        Storage::disk('public')->assertMissing($newPdfPath);
     }
 
-    #[Test] public function it_requires_a_valid_signature_id()
+    /** @test */
+    public function it_requires_a_valid_signature_id()
     {
         // Create a user and document
         $user = User::factory()->create();
-        $document = Document::factory()->create(['user_id' => $user->id]);
+        $document = Document::factory()->create(['user_id' => $user->id, 'file' => 'documents/sample.pdf']);
 
         // Authenticate the user
         Sanctum::actingAs($user);
 
         // API request with invalid data
         $response = $this->postJson("/api/documents/{$document->id}/sign", [
-            'signature_id' => 999, // No user for id 999
+            'signature_id' => 999, // Non-existent signature ID
         ]);
 
         // Check the response status and errors

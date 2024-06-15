@@ -20,9 +20,27 @@ class DocumentController extends Controller
             'user_id' => Auth::id(),
         ]);
 
-        return response()->json([
+        return new JsonResponse([
             'message' => 'Document uploaded successfully',
             'document' => $document,
         ], 201);
     }
+
+    public function userDocumentList(): JsonResponse
+    {
+        $documents = Auth::user()->documents()->with(['signatures' => function ($query) {
+            $query->select('signatures.id', 'document_signature.signed_user_id', 'document_signature.signed_at')
+                ->withPivot('signed_user_id', 'signed_at');
+        }])->get();
+
+        $documentsWithStatus = $documents->map(function ($document) {
+            $document->signatures->each(function ($signature) {
+                $signature->status = $signature->pivot->signed_at ? 'signed' : 'pending';
+            });
+            return $document;
+        });
+
+        return new JsonResponse($documentsWithStatus);
+    }
+
 }
