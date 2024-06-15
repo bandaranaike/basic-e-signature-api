@@ -8,22 +8,20 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Support\Str;
 
-class Document extends Model
+class Signature extends Model
 {
     use HasFactory;
-
     protected $fillable = [
         'public_id',
-        'name',
-        'file',
         'user_id',
+        'file',
     ];
 
     protected static function boot(): void
     {
         parent::boot();
 
-        // Generating a UUID for the public_id
+        // UUID for public_id
         static::creating(function ($model) {
             $model->public_id = Str::uuid()->toString();
         });
@@ -34,9 +32,9 @@ class Document extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function signatures(): BelongsToMany
+    public function documents(): BelongsToMany
     {
-        return $this->belongsToMany(Signature::class, 'document_signature')
+        return $this->belongsToMany(Document::class, 'document_signature')
             ->withPivot('signed_user_id', 'signed_at')
             ->withTimestamps();
     }
