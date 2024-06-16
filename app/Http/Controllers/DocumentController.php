@@ -12,6 +12,12 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 
 class DocumentController extends Controller
 {
+    /**
+     * Upload a document
+     *
+     * @param DocumentUploadRequest $request
+     * @return JsonResponse
+     */
     public function uploadDocument(DocumentUploadRequest $request): JsonResponse
     {
         try {
@@ -26,28 +32,45 @@ class DocumentController extends Controller
             $document->status = 'pending';
             $document->save();
         } catch (\Exception $exception) {
-            return new JsonResponse(['message' => 'There was an error '], 500);
+            return new JsonResponse(['message' => 'An error occurred while uploading the document '], 500);
         }
-
 
         return new JsonResponse(['message' => 'Document uploaded successfully', 'document' => $document], 201);
     }
 
-
+    /**
+     * The list of all users documents
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
     public function getUserDocuments(Request $request): JsonResponse
     {
-        $perPage = $request->input('per_page', 10);
-        $documents = Document::where('user_id', Auth::id())->paginate($perPage);
+        try {
+            $perPage = $request->input('per_page', 10);
+            $documents = Document::where('user_id', Auth::id())->paginate($perPage);
 
-        return new JsonResponse($documents);
+            return new JsonResponse($documents);
+        } catch (\Exception $e) {
+            return new JsonResponse(['error' => 'An error occurred while retrieving user documents', 'message' => $e->getMessage()], 500);
+        }
     }
 
-
+    /**
+     * The list of documents which user has to sign
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
     public function getSignRequestedDocuments(Request $request): JsonResponse
     {
-        $perPage = $request->input('per_page', 10);
-        $signatureRequests = SignatureRequest::where('requester_id', Auth::id())->with('document')->paginate($perPage);
+        try {
+            $perPage = $request->input('per_page', 10);
+            $signatureRequests = SignatureRequest::where('requester_id', Auth::id())->with('document')->paginate($perPage);
 
-        return new JsonResponse($signatureRequests);
+            return new JsonResponse($signatureRequests);
+        } catch (\Exception $e) {
+            return new JsonResponse(['error' => 'An error occurred while retrieving sign requested documents', 'message' => $e->getMessage()], 500);
+        }
     }
 }

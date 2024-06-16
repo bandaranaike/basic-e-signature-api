@@ -59,29 +59,10 @@ The Basic E-Signature API is a robust solution for electronically signing docume
     ```bash
     php artisan serve
     ```
-
+7. To run all the tests, use this command:
+    ```bash
+    php artisan test
+    ```
 ## API Documentation
 
 For detailed API documentation, please refer to the [DOCUMENTATION.md](DOCUMENTATION.md) file.
-
-## Security Considerations
-
-- Ensure the private key (`private_key.pem`) is stored securely and not exposed publicly.
-- Use HTTPS to encrypt data transmission between clients and the server.
-- Regularly update dependencies to patch any security vulnerabilities.
-
-## Contributing
-
-1. Fork the repository
-2. Create a new branch (`git checkout -b feature-branch`)
-3. Commit your changes (`git commit -am 'Add new feature'`)
-4. Push to the branch (`git push origin feature-branch`)
-5. Create a new Pull Request
-
-## License
-
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
-
-## Contact
-
-For any inquiries or feedback, please contact [yourname@example.com](mailto:yourname@example.com).
