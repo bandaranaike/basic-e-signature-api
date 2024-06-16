@@ -6,13 +6,14 @@
     "license": "MIT",
     "require": {
         "php": "^8.2",
+        "ext-openssl": "*",
         "barryvdh/laravel-dompdf": "^2.2",
+        "doctrine/annotations": "^2.0",
         "laravel/framework": "^11.9",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^2.9",
         "setasign/fpdf": "^1.8",
-        "setasign/fpdi": "^2.6",
-        "ext-openssl": "*"
+        "setasign/fpdi": "^2.6"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",

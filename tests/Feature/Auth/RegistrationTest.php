@@ -3,6 +3,7 @@
 namespace Tests\Feature\Auth;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class RegistrationTest extends TestCase
@@ -17,6 +18,8 @@ class RegistrationTest extends TestCase
             'password' => 'password',
             'password_confirmation' => 'password',
         ]);
+
+//        dd($response->exception);
 
         $this->assertAuthenticated();
         $response->assertNoContent();
