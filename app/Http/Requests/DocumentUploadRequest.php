@@ -23,8 +23,8 @@ class DocumentUploadRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => 'required|string|max:255',
-            'file' => 'required|file|mimes:pdf|max:2048',
+            'title' => 'required|string|max:255',
+            'file' => 'required|file|mimes:pdf|max:10240', // 10 MB max file size
         ];
     }
 }

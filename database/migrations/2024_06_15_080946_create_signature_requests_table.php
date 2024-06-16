@@ -10,16 +10,17 @@ return new class extends Migration {
      */
     public function up(): void
     {
-        Schema::create('signatures', function (Blueprint $table) {
+        Schema::create('signature_requests', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->uuid('document_id');
-            $table->uuid('user_id');
-            $table->string('signature_file_path');
-            $table->string('signature_hash');
+            $table->uuid('requester_id');
+            $table->uuid('requested_user_id');
+            $table->enum('status', ['pending', 'signed', 'rejected'])->default('pending');
             $table->timestamps();
 
             $table->foreign('document_id')->references('id')->on('documents')->onDelete('cascade');
-            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+            $table->foreign('requester_id')->references('id')->on('users')->onDelete('cascade');
+            $table->foreign('requested_user_id')->references('id')->on('users')->onDelete('cascade');
         });
     }
 
@@ -28,6 +29,6 @@ return new class extends Migration {
      */
     public function down(): void
     {
-        Schema::dropIfExists('signatures');
+        Schema::dropIfExists('signature_requests');
     }
 };

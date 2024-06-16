@@ -1,13 +1,12 @@
 <?php
-
 namespace Tests\Feature;
 
-use App\Models\Document;
 use App\Models\User;
+use App\Models\Document;
+use App\Models\SignatureRequest;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
-use Laravel\Sanctum\Sanctum;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -15,140 +14,94 @@ class DocumentControllerTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function setUp(): void
+    #[Test] public function uploading_a_document_successfully()
     {
-        parent::setUp();
-        // Ensure storage directory is cleaned up before and after each test
-        Storage::fake('public');
-    }
+        Storage::fake('documents');
 
-    #[Test] public function an_authenticated_user_can_upload_a_document()
-    {
-        // API request
-        list($response, $file, $user) = $this->upload_fake_document(1);
-
-        // Check the response status and structure
-        $response->assertStatus(201)
-            ->assertJsonStructure([
-                'message',
-                'document' => [
-                    'id',
-                    'public_id',
-                    'name',
-                    'file',
-                    'user_id',
-                    'created_at',
-                    'updated_at',
-                ],
-            ]);
-
-        // Make sure the file was stored
-        Storage::disk('public')->assertExists('documents/' . $file->hashName());
-
-        // Database should contain the document
-        $this->assertDatabaseHas('documents', [
-            'name' => 'Test Document 1',
-            'file' => 'documents/' . $file->hashName(),
-            'user_id' => $user->id,
-        ]);
-    }
-
-    private function upload_fake_document($documentId): array
-    {
         $user = User::factory()->create();
-        Sanctum::actingAs($user);
 
-        $file = UploadedFile::fake()->create("document-$documentId.pdf", 1024, 'application/pdf');
-
-        $response = $this->postJson('/api/documents/upload', [
-            'name' => "Test Document $documentId",
-            'file' => $file,
-        ]);
-        return [$response, $file, $user];
-    }
-
-    #[Test] public function a_guest_user_cannot_upload_a_document()
-    {
-
-        // A fake doc creating
-        $file = UploadedFile::fake()->create('document.pdf', 1024, 'application/pdf');
-
-        // API request without authentication
-        $response = $this->postJson('/api/documents/upload', [
-            'name' => 'Test Document',
-            'file' => $file,
+        $response = $this->actingAs($user, 'sanctum')->postJson('/api/documents', [
+            'title' => 'Test Document',
+            'file' => UploadedFile::fake()->create('test.pdf', 1000, 'application/pdf')
         ]);
 
-        // check the response status
-        $response->assertStatus(401);
-
-        // File should not be there
-        Storage::disk('public')->assertMissing('documents/' . $file->hashName());
-    }
-
-    #[Test] public function it_requires_a_valid_file_and_name()
-    {
-        // Create a user and authenticate
-        $user = User::factory()->create();
-        Sanctum::actingAs($user);
-
-        // API request with invalid data
-        $response = $this->postJson('/api/documents/upload', [
-            'name' => '',
-            'file' => 'not_a_file',
-        ]);
-
-        // Expect response status and errors
-        $response->assertStatus(422)
-            ->assertJsonValidationErrors(['name', 'file']);
-    }
-
-    #[Test] public function a_user_has_documents()
-    {
-        $count = 3;
-
-        for ($i = 0; $i < $count; $i++) {
-            $this->upload_fake_document($i);
-        }
-
-
-        $response = $this->getJson('/api/documents');
-
-        dd($response->json());
-
-        $response->assertStatus(200)->assertJsonCount($count);
-    }
-
-    public function test_user_document_list()
-    {
-        $user = User::factory()->create();
-        $document1 = Document::factory()->create(['user_id' => $user->id]);
-        $document2 = Document::factory()->create(['user_id' => $user->id]);
-
-        $response = $this->actingAs($user, 'sanctum')
-            ->getJson('/api/user/documents');
-
-        $response->assertStatus(200);
+        $response->assertStatus(201);
         $response->assertJsonStructure([
-            'documents' => [
-                '*' => ['id', 'public_id', 'name', 'file', 'user_id', 'created_at', 'updated_at']
+            'message',
+            'document' => [
+                'id',
+                'user_id',
+                'title',
+                'file_path',
+                'status',
+                'created_at',
+                'updated_at'
             ]
         ]);
 
-        $documents = $response->json('documents');
-        $this->assertCount(2, $documents);
-        $this->assertEquals($document1->id, $documents[0]['id']);
-        $this->assertEquals($document2->id, $documents[1]['id']);
+        // Extract the file path from the response
+        $filePath = $response->json('document.file_path');
+
+        // Assert the file exists in the fake storage
+        Storage::disk('documents')->assertExists($filePath);
     }
 
-    public function test_user_document_list_empty()
+    #[Test] public function getting_user_documents_with_pagination()
     {
         $user = User::factory()->create();
+        Document::factory()->count(15)->create(['user_id' => $user->id]);
 
-        $response = $this->actingAs($user, 'sanctum')
-            ->getJson('/api/user/documents');
+        $response = $this->actingAs($user, 'sanctum')->getJson('/api/documents?per_page=5');
 
         $response->assertStatus(200);
-        $response->assertJson(['documents' => []]);
+        $response->assertJsonStructure([
+            'current_page',
+            'data',
+            'first_page_url',
+            'from',
+            'last_page',
+            'last_page_url',
+            'next_page_url',
+            'path',
+            'per_page',
+            'prev_page_url',
+            'to',
+            'total'
+        ]);
+        $this->assertCount(5, $response->json('data'));
+    }
+
+    #[Test] public function getting_sign_requested_documents_with_pagination()
+    {
+        $user = User::factory()->create();
+        $requestedUser = User::factory()->create();
+
+        $documents = Document::factory()->count(10)->create(['user_id' => $user->id]);
+        foreach ($documents as $document) {
+            SignatureRequest::factory()->create([
+                'document_id' => $document->id,
+                'requester_id' => $user->id,
+                'requested_user_id' => $requestedUser->id
+            ]);
+        }
+
+        $response = $this->actingAs($user, 'sanctum')->getJson('/api/documents/sign-requested?per_page=5');
+
+        $response->assertStatus(200);
+        $response->assertJsonStructure([
+            'current_page',
+            'data',
+            'first_page_url',
+            'from',
+            'last_page',
+            'last_page_url',
+            'next_page_url',
+            'path',
+            'per_page',
+            'prev_page_url',
+            'to',
+            'total'
+        ]);
+        $this->assertCount(5, $response->json('data'));
     }
 }

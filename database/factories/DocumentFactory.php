@@ -20,9 +20,9 @@ class DocumentFactory extends Factory
     public function definition(): array
     {
         return [
-            'public_id' => (string)Str::uuid(),
-            'name' => $this->faker->word() . '.pdf',
-            'file' => 'documents/' . $this->faker->uuid() . '.pdf',
+            'id' => (string)Str::uuid(),
+            'title' => $this->faker->word() . '.pdf',
+            'file_path' => 'documents/' . $this->faker->uuid() . '.pdf',
             'user_id' => User::factory(),
         ];
     }

@@ -4,40 +4,45 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Support\Str;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Document extends Model
 {
     use HasFactory;
 
+    protected $keyType = 'uuid';
+    public $incrementing = false;
+
     protected $fillable = [
-        'public_id',
-        'name',
-        'file',
+        'id',
         'user_id',
+        'title',
+        'file_path',
+        'status',
     ];
 
-    protected static function boot(): void
-    {
-        parent::boot();
-
-        // Generating a UUID for the public_id
-        static::creating(function ($model) {
-            $model->public_id = Str::uuid()->toString();
-        });
-    }
-
-    public function user(): BelongsTo
+    /**
+     * Get the user that owns the document.
+     */
+    public function user()
     {
         return $this->belongsTo(User::class);
     }
 
-    public function signatures(): BelongsToMany
+    /**
+     * Get the signature requests for the document.
+     */
+    public function signatureRequests(): HasMany
     {
-        return $this->belongsToMany(Signature::class, 'document_signature')
-            ->withPivot('signed_user_id', 'signed_at')
-            ->withTimestamps();
+        return $this->hasMany(SignatureRequest::class);
+    }
+
+    /**
+     * Get the signature associated with the document.
+     */
+    public function signature(): HasOne
+    {
+        return $this->hasOne(Signature::class);
     }
 }

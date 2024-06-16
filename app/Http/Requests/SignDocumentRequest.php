@@ -23,7 +23,8 @@ class SignDocumentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'signature_id' => 'required|exists:signatures,id',
+            'document_id' => 'required|exists:documents,id',
+            'requested_user_id' => 'required|exists:users,id',
         ];
     }
 }

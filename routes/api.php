@@ -6,15 +6,18 @@ use App\Http\Controllers\SignatureController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
-
 Route::middleware(['auth:sanctum'])->get('/user', function (Request $request) {
     return $request->user();
 });
 
-Route::middleware(['auth:sanctum'])->post('/documents/upload', [DocumentController::class, 'upload']);
+Route::middleware('auth:sanctum')->group(function () {
 
-Route::middleware(['auth:sanctum'])->post('/signatures/upload', [SignatureController::class, 'upload']);
-Route::middleware(['auth:sanctum'])->post('/documents/{document}/sign', [DocumentSignatureController::class, 'signDocument']);
-Route::middleware(['auth:sanctum'])->post('/documents/{document}/sign-requests', [DocumentSignatureController::class, 'sendSignatureRequest']);
+    Route::post('/document-signatures/create-requests', [DocumentSignatureController::class, 'createSignatureRequest']);
 
-Route::middleware(['auth:sanctum'])->get('/user/documents', [DocumentController::class, 'userDocumentList']);
+    Route::post('documents/{documentId}/sign', [SignatureController::class, 'signDocument'])->name('sign.document');
+    Route::get('documents/{documentId}/verify-signature', [SignatureController::class, 'verifySignature'])->name('verify.signature');
+
+    Route::post('/documents', [DocumentController::class, 'uploadDocument']);
+    Route::get('/documents', [DocumentController::class, 'getUserDocuments']);
+    Route::get('/documents/sign-requested', [DocumentController::class, 'getSignRequestedDocuments']);
+});

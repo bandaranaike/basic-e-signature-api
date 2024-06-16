@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\Document;
 use App\Models\Signature;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -20,9 +21,11 @@ class SignatureFactory extends Factory
     public function definition(): array
     {
         return [
-            'public_id' => Str::uuid()->toString(),
-            'file' => 'signatures/' . $this->faker->uuid() . '.png',
+            'id' => Str::uuid(),
+            'document_id' => Document::factory(),
             'user_id' => User::factory(),
+            'signature_file_path' => 'signatures/' . $this->faker->uuid . '.sig',
+            'signature_hash' => base64_encode($this->faker->sha256),
         ];
     }
 }

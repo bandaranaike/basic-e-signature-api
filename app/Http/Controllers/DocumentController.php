@@ -4,43 +4,50 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\DocumentUploadRequest;
 use App\Models\Document;
-use Illuminate\Http\JsonResponse;
+use App\Models\SignatureRequest;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\JsonResponse;
 
 class DocumentController extends Controller
 {
-    public function upload(DocumentUploadRequest $request): JsonResponse
+    public function uploadDocument(DocumentUploadRequest $request): JsonResponse
     {
-        $file = $request->file('file');
-        $path = $file->store('documents', 'public');
+        try {
+            $file = $request->file('file');
+            $path = $file->storeAs('documents', Str::uuid() . '.' . $file->getClientOriginalExtension(), 'documents');
 
-        $document = Document::create([
-            'name' => $request->input('name'),
-            'file' => $path,
-            'user_id' => Auth::id(),
-        ]);
+            $document = new Document();
+            $document->id = (string)Str::uuid();
+            $document->user_id = Auth::id();
+            $document->title = $request->title;
+            $document->file_path = $path;
+            $document->status = 'pending';
+            $document->save();
+        } catch (\Exception $exception) {
+            return new JsonResponse(['message' => 'There was an error '], 500);
+        }
 
-        return new JsonResponse([
-            'message' => 'Document uploaded successfully',
-            'document' => $document,
-        ], 201);
+
+        return new JsonResponse(['message' => 'Document uploaded successfully', 'document' => $document], 201);
     }
 
-    public function userDocumentList(): JsonResponse
+
+    public function getUserDocuments(Request $request): JsonResponse
     {
-        $documents = Auth::user()->documents()->with(['signatures' => function ($query) {
-            $query->select('signatures.id', 'document_signature.signed_user_id', 'document_signature.signed_at')
-                ->withPivot('signed_user_id', 'signed_at');
-        }])->get();
+        $perPage = $request->input('per_page', 10);
+        $documents = Document::where('user_id', Auth::id())->paginate($perPage);
 
-        $documentsWithStatus = $documents->map(function ($document) {
-            $document->signatures->each(function ($signature) {
-                $signature->status = $signature->pivot->signed_at ? 'signed' : 'pending';
-            });
-            return $document;
-        });
-
-        return new JsonResponse($documentsWithStatus);
+        return new JsonResponse($documents);
     }
 
+
+    public function getSignRequestedDocuments(Request $request): JsonResponse
+    {
+        $perPage = $request->input('per_page', 10);
+        $signatureRequests = SignatureRequest::where('requester_id', Auth::id())->with('document')->paginate($perPage);
+
+        return new JsonResponse($signatureRequests);
+    }
 }
